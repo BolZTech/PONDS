@@ -363,6 +363,19 @@ select.form-input{cursor:pointer;appearance:none;background-image:url("data:imag
           <div style="font-size:12px;color:var(--muted);margin-top:4px">Data mentah bawaan: <span id="dataCount">0</span> entri.</div>
         </div></div>
       </div>
+
+      <div class="glass-card" style="margin-bottom:16px">
+        <div class="card-head"><h3><i class="fas fa-tags" style="color:var(--accent);margin-right:8px"></i>Setting Harga per Produk</h3></div>
+        <div class="card-body">
+          <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Kategori Bayar menentukan cara hitung otomatis di form input. Untuk <b>Minimal Order</b>, Harga Kantor diisi sebagai harga jual flat (total), dan split persen wajib totalnya 100%.</div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th style="min-width:160px">Produk</th><th>Kategori</th><th>Harga Opr (Rp)</th><th>Harga Kantor (Rp)</th><th>% Opr</th><th>% Kantor</th><th>Aksi</th></tr></thead>
+              <tbody id="produkHargaTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- MANAJEMEN USER -->
@@ -476,7 +489,7 @@ async function loadMasterData() {
         sb.from('master_pic').select('id, nama').order('nama'),
         sb.from('master_mesin').select('id, kode').order('kode'),
         sb.from('master_customer').select('id, nama').order('nama'),
-        sb.from('master_produk').select('id, nama').order('nama'),
+        sb.from('master_produk').select('id, nama, kategori_bayar, harga_opr, harga_kantor, persen_opr, persen_kantor').order('nama'),
     ]);
     const err = pic.error || mesin.error || cust.error || produk.error;
     if (err) {
@@ -520,7 +533,7 @@ async function loadEntries() {
         customer: d.customer ? d.customer.nama : '-',
         qty: d.qty || 0,
         pisau: d.pisau || 0,
-        totalJualStr: d.total_jual ? rp(d.total_jual) : 'Belum Dihitung'
+        totalJualStr: rp(d.total_jual)
     }));
 }
 
@@ -780,6 +793,75 @@ function renderMasterLists() {
     document.getElementById('mesinList').innerHTML = masterMesins.map(m => `<span class="badge badge-cyan" style="cursor:pointer" onclick="removeMaster('mesin','${m.id}')">${m.kode} <i class="fas fa-xmark" style="margin-left:4px;font-size:10px"></i></span>`).join('');
     document.getElementById('customerList').innerHTML = masterCustomers.map(c => `<span class="badge badge-green" style="cursor:pointer" onclick="removeMaster('customer','${c.id}')">${c.nama} <i class="fas fa-xmark" style="margin-left:4px;font-size:10px"></i></span>`).join('');
     document.getElementById('produkList').innerHTML = masterProduk.map(pr => `<span class="badge badge-gray" style="cursor:pointer" onclick="removeMaster('produk','${pr.id}')">${pr.nama} <i class="fas fa-xmark" style="margin-left:4px;font-size:10px"></i></span>`).join('');
+    renderProdukHargaTable();
+}
+
+// ==================== SETTING HARGA PER PRODUK ====================
+function renderProdukHargaTable() {
+    const tbody = document.getElementById('produkHargaTableBody');
+    if (!tbody) return;
+
+    tbody.innerHTML = masterProduk.map(pr => {
+        const isMinimal = pr.kategori_bayar === 'Minimal Order';
+        return `
+        <tr data-produk-id="${pr.id}">
+            <td>${pr.nama}</td>
+            <td>
+                <select class="form-input ph-kategori" style="min-width:130px" onchange="onKategoriHargaChange('${pr.id}')">
+                    <option value="Per Lembar" ${pr.kategori_bayar === 'Per Lembar' ? 'selected' : ''}>Per Lembar</option>
+                    <option value="Per Pisau" ${pr.kategori_bayar === 'Per Pisau' ? 'selected' : ''}>Per Pisau</option>
+                    <option value="Minimal Order" ${isMinimal ? 'selected' : ''}>Minimal Order</option>
+                </select>
+            </td>
+            <td><input type="number" class="form-input ph-harga-opr" style="width:100px" value="${pr.harga_opr || 0}" ${isMinimal ? 'disabled' : ''} title="${isMinimal ? 'Tidak dipakai untuk Minimal Order' : ''}"></td>
+            <td><input type="number" class="form-input ph-harga-kantor" style="width:110px" value="${pr.harga_kantor || 0}" title="${isMinimal ? 'Diisi sebagai harga jual flat' : ''}"></td>
+            <td><input type="number" class="form-input ph-persen-opr" style="width:70px" value="${pr.persen_opr ?? 40}" ${!isMinimal ? 'disabled' : ''}></td>
+            <td><input type="number" class="form-input ph-persen-kantor" style="width:70px" value="${pr.persen_kantor ?? 60}" ${!isMinimal ? 'disabled' : ''}></td>
+            <td><button class="btn btn-primary btn-sm" onclick="saveHargaProduk('${pr.id}')"><i class="fas fa-check"></i></button></td>
+        </tr>`;
+    }).join('');
+}
+
+function onKategoriHargaChange(produkId) {
+    const row = document.querySelector(`tr[data-produk-id="${produkId}"]`);
+    const kategori = row.querySelector('.ph-kategori').value;
+    const isMinimal = kategori === 'Minimal Order';
+    row.querySelector('.ph-harga-opr').disabled = isMinimal;
+    row.querySelector('.ph-persen-opr').disabled = !isMinimal;
+    row.querySelector('.ph-persen-kantor').disabled = !isMinimal;
+}
+
+async function saveHargaProduk(produkId) {
+    const row = document.querySelector(`tr[data-produk-id="${produkId}"]`);
+    const kategori = row.querySelector('.ph-kategori').value;
+    const hargaOpr = parseFloat(row.querySelector('.ph-harga-opr').value) || 0;
+    const hargaKantor = parseFloat(row.querySelector('.ph-harga-kantor').value) || 0;
+    const persenOpr = parseFloat(row.querySelector('.ph-persen-opr').value) || 0;
+    const persenKantor = parseFloat(row.querySelector('.ph-persen-kantor').value) || 0;
+
+    // SECURITY: split persen wajib total 100% sebelum boleh disimpan
+    if (kategori === 'Minimal Order' && (persenOpr + persenKantor !== 100)) {
+        showToast(`Split persen harus total 100% (sekarang: ${persenOpr + persenKantor}%)`, 'err');
+        return;
+    }
+
+    const { error } = await sb.from('master_produk').update({
+        kategori_bayar: kategori,
+        harga_opr: hargaOpr,
+        harga_kantor: hargaKantor,
+        persen_opr: persenOpr,
+        persen_kantor: persenKantor
+    }).eq('id', produkId);
+
+    if (error) {
+        console.error(error);
+        showToast(error.message.includes('check_persen_split_100') ? 'Split persen harus total 100%' : 'Gagal menyimpan harga', 'err');
+        return;
+    }
+
+    await loadMasterData();
+    renderProdukHargaTable();
+    showToast('Harga produk berhasil disimpan', 'ok');
 }
 
 // ==================== TAMBAH CEPAT (DARI FORM INPUT HARIAN) ====================
@@ -851,6 +933,32 @@ function resetForm() {
     generateAutoJO();
 }
 
+function hitungHarga(produk, qty, pisau) {
+    // Meniru rumus dari laporan Excel:
+    // Per Lembar / Per Pisau: total = jumlah_satuan * harga masing2, harga_jual = harga_opr + harga_kantor
+    // Minimal Order: harga_kantor dipakai sebagai harga jual flat, displit pakai persen manual
+    const hargaOpr = Number(produk.harga_opr) || 0;
+    const hargaKantor = Number(produk.harga_kantor) || 0;
+    const persenOpr = Number(produk.persen_opr) || 0;
+    const persenKantor = Number(produk.persen_kantor) || 0;
+
+    if (produk.kategori_bayar === 'Per Lembar') {
+        const totalOpr = qty * hargaOpr;
+        const totalKantor = qty * hargaKantor;
+        return { hargaJual: hargaOpr + hargaKantor, totalOpr, totalKantor, totalJual: totalOpr + totalKantor };
+    }
+    if (produk.kategori_bayar === 'Per Pisau') {
+        const totalOpr = pisau * hargaOpr;
+        const totalKantor = pisau * hargaKantor;
+        return { hargaJual: hargaOpr + hargaKantor, totalOpr, totalKantor, totalJual: totalOpr + totalKantor };
+    }
+    // Minimal Order
+    const hargaJualFlat = hargaKantor; // harga_kantor dipakai sbg harga jual flat untuk kategori ini
+    const totalOpr = hargaJualFlat * (persenOpr / 100);
+    const totalKantor = hargaJualFlat * (persenKantor / 100);
+    return { hargaJual: hargaJualFlat, totalOpr, totalKantor, totalJual: hargaJualFlat };
+}
+
 async function saveEntry() {
     const tanggal = document.getElementById('fTanggal').value;
     const produkId = document.getElementById('fItem').value;
@@ -858,6 +966,11 @@ async function saveEntry() {
         showToast('Tanggal dan Item wajib diisi!', 'err');
         return;
     }
+
+    const produk = masterProduk.find(p => p.id === produkId);
+    const qty = parseInt(document.getElementById('fQty').value) || 0;
+    const pisau = parseInt(document.getElementById('fPisau').value) || 0;
+    const kalkulasi = produk ? hitungHarga(produk, qty, pisau) : { hargaJual: 0, totalOpr: 0, totalKantor: 0, totalJual: 0 };
 
     const payload = {
         tanggal: tanggal,
@@ -867,15 +980,19 @@ async function saveEntry() {
         jo: parseInt(document.getElementById('fJO').value) || 0,
         produk_id: produkId,
         customer_id: document.getElementById('fCustomer').value || null,
-        qty: parseInt(document.getElementById('fQty').value) || 0,
-        pisau: parseInt(document.getElementById('fPisau').value) || 0,
-        keterangan: document.getElementById('fKeterangan').value || null
+        qty: qty,
+        pisau: pisau,
+        keterangan: document.getElementById('fKeterangan').value || null,
+        harga_jual: kalkulasi.hargaJual,
+        total_opr: kalkulasi.totalOpr,
+        total_kantor: kalkulasi.totalKantor,
+        total_jual: kalkulasi.totalJual
     };
 
     const { error } = await sb.from('entries').insert(payload);
     if (error) { console.error(error); showToast('Gagal menyimpan ke Supabase', 'err'); return; }
 
-    showToast('Data berhasil disimpan (JO Otomatis: ' + payload.jo + ')', 'ok');
+    showToast('Data berhasil disimpan (JO Otomatis: ' + payload.jo + ', Total Jual: ' + rp(kalkulasi.totalJual) + ')', 'ok');
     resetForm();
     await loadEntries();
     updateDashboardKPIs();
