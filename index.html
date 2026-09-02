@@ -121,6 +121,28 @@ select.form-input{cursor:pointer;appearance:none;background-image:url("data:imag
 
 <div class="toast-container" id="toastContainer"></div>
 
+<!-- LOGIN OVERLAY -->
+<div id="loginOverlay" style="position:fixed;inset:0;background:var(--bg,#0a0a0f);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px">
+  <div style="width:100%;max-width:360px;background:var(--card,#14141c);border:1px solid var(--border,#232330);border-radius:16px;padding:32px 28px">
+    <div style="text-align:center;margin-bottom:24px">
+      <div style="width:56px;height:56px;border-radius:14px;background:var(--accent-dim,rgba(245,158,11,.12));display:flex;align-items:center;justify-content:center;margin:0 auto 12px"><i class="fas fa-stamp" style="color:var(--accent,#f59e0b);font-size:24px"></i></div>
+      <div style="font-family:'Space Grotesk';font-size:20px;font-weight:700;color:var(--txt,#fff)" id="loginBrandName">PondPress</div>
+      <div style="font-size:12px;color:var(--muted,#666);margin-top:2px">Silakan login untuk melanjutkan</div>
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="display:block;font-size:12px;color:var(--txt2,#999);margin-bottom:6px">Username</label>
+      <input type="text" id="loginUsername" class="form-input" style="width:100%" placeholder="username" autocomplete="username">
+    </div>
+    <div style="margin-bottom:18px">
+      <label style="display:block;font-size:12px;color:var(--txt2,#999);margin-bottom:6px">Password</label>
+      <input type="password" id="loginPassword" class="form-input" style="width:100%" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <div id="loginError" style="display:none;color:var(--err,#ef4444);font-size:12px;margin-bottom:14px"></div>
+    <button onclick="handleLogin()" class="btn btn-primary" style="width:100%;justify-content:center">Masuk</button>
+    <div style="text-align:center;font-size:11px;color:var(--muted,#666);margin-top:16px">Default: admin / admin123</div>
+  </div>
+</div>
+
 <!-- SIDEBAR -->
 <aside class="sidebar" id="sidebar">
   <div class="brand">
@@ -140,6 +162,7 @@ select.form-input{cursor:pointer;appearance:none;background-image:url("data:imag
     <div class="nav-item" data-page="rekap-opr"><i class="fas fa-clipboard-list"></i>Rekap Operator</div>
     <div class="nav-item" data-page="rekap-owner"><i class="fas fa-crown"></i>Rekap Owner</div>
     <div class="nav-item" data-page="pengaturan"><i class="fas fa-sliders"></i>Pengaturan (Master)</div>
+    <div class="nav-item" data-page="users"><i class="fas fa-users-gear"></i>Manajemen User</div>
   </nav>
   <div class="nav-footer">
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><div class="live-dot" style="width:8px;height:8px;border-radius:50%;background:var(--ok);animation:pulse-dot 2s infinite"></div><span style="color:var(--ok);font-size:10px;font-weight:600">SYSTEM ONLINE</span></div>
@@ -158,7 +181,9 @@ select.form-input{cursor:pointer;appearance:none;background-image:url("data:imag
     </div>
     <div style="display:flex;align-items:center;gap:16px">
       <span style="font-size:13px;color:var(--txt2)" id="todayDate"></span>
-      <div style="width:34px;height:34px;border-radius:8px;background:var(--accent-dim);display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:14px;font-weight:700">A</div>
+      <span style="font-size:13px;color:var(--txt2)" id="loggedInUser"></span>
+      <button onclick="handleLogout()" class="btn-icon" title="Logout"><i class="fas fa-right-from-bracket" style="color:var(--muted)"></i></button>
+      <div style="width:34px;height:34px;border-radius:8px;background:var(--accent-dim);display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:14px;font-weight:700" id="userAvatar">A</div>
     </div>
   </div>
 
@@ -340,6 +365,42 @@ select.form-input{cursor:pointer;appearance:none;background-image:url("data:imag
       </div>
     </div>
 
+    <!-- MANAJEMEN USER -->
+    <div class="page" id="page-users">
+      <div class="glass-card" style="margin-bottom:16px">
+        <div class="card-head"><h3><i class="fas fa-user-plus" style="color:var(--accent);margin-right:8px"></i>Tambah User Baru</h3></div>
+        <div class="card-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Username</label>
+              <input type="text" class="form-input" id="newUserUsername" placeholder="mis. rendi">
+            </div>
+            <div class="form-group">
+              <label>Password</label>
+              <input type="text" class="form-input" id="newUserPassword" placeholder="mis. rendi123">
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:14px">
+            <label>Akses Halaman</label>
+            <div id="newUserPageAccess" style="display:flex;flex-wrap:wrap;gap:14px;margin-top:6px"></div>
+          </div>
+          <button class="btn btn-primary" onclick="addUser()"><i class="fas fa-check"></i>Simpan User</button>
+        </div>
+      </div>
+
+      <div class="glass-card">
+        <div class="card-head"><h3><i class="fas fa-users" style="color:var(--info);margin-right:8px"></i>Daftar User</h3></div>
+        <div class="card-body">
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>Username</th><th>Role</th><th>Akses Halaman</th><th>Aksi</th></tr></thead>
+              <tbody id="userTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -381,6 +442,18 @@ select.form-input{cursor:pointer;appearance:none;background-image:url("data:imag
 const SUPABASE_URL = 'https://ytbaiinupocfmafutwwz.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl0YmFpaW51cG9jZm1hZnV0d3d6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgzMTY3ODQsImV4cCI6MjEwMzg5Mjc4NH0.jH7V226hnoy14WmHHju5WjgV816ffV4RONe0OJp9AG0';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ==================== DAFTAR HALAMAN (untuk kontrol akses) ====================
+const PAGES = [
+    { id: 'dashboard', label: 'Dashboard' },
+    { id: 'input', label: 'Input Harian' },
+    { id: 'rekap-opr', label: 'Rekap Operator' },
+    { id: 'rekap-owner', label: 'Rekap Owner' },
+    { id: 'pengaturan', label: 'Pengaturan (Master)' },
+    { id: 'users', label: 'Manajemen User' }
+];
+
+let currentUser = null; // { id, username, role, page_access }
 
 let allData = [];
 let masterPics = [];
@@ -503,6 +576,84 @@ async function saveBranding() {
     }
 }
 
+// ==================== AUTENTIKASI ====================
+async function sha256(text) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function saveSession(user) {
+    currentUser = user;
+    localStorage.setItem('pondpress_session', JSON.stringify(user));
+}
+
+function loadSession() {
+    const raw = localStorage.getItem('pondpress_session');
+    if (!raw) return null;
+    try { return JSON.parse(raw); } catch(e) { return null; }
+}
+
+function clearSession() {
+    currentUser = null;
+    localStorage.removeItem('pondpress_session');
+}
+
+async function handleLogin() {
+    const username = document.getElementById('loginUsername').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const errEl = document.getElementById('loginError');
+    errEl.style.display = 'none';
+
+    if (!username || !password) {
+        errEl.innerText = 'Username dan password wajib diisi.';
+        errEl.style.display = 'block';
+        return;
+    }
+
+    const hash = await sha256(password);
+    const { data, error } = await sb.from('app_users').select('id, username, role, page_access, password_hash').eq('username', username).maybeSingle();
+
+    if (error || !data || data.password_hash !== hash) {
+        errEl.innerText = 'Username atau password salah.';
+        errEl.style.display = 'block';
+        return;
+    }
+
+    saveSession({ id: data.id, username: data.username, role: data.role, page_access: data.page_access || [] });
+    await enterApp();
+}
+
+function handleLogout() {
+    clearSession();
+    document.getElementById('loginOverlay').style.display = 'flex';
+    document.getElementById('loginUsername').value = '';
+    document.getElementById('loginPassword').value = '';
+}
+
+function canAccess(pageId) {
+    if (!currentUser) return false;
+    return currentUser.page_access.includes(pageId);
+}
+
+function applyPageAccessToUI() {
+    document.querySelectorAll('.nav-item').forEach(item => {
+        const pageId = item.dataset.page;
+        item.style.display = canAccess(pageId) ? '' : 'none';
+    });
+    document.getElementById('loggedInUser').innerText = currentUser.username + (currentUser.role === 'admin' ? ' (admin)' : '');
+    document.getElementById('userAvatar').innerText = currentUser.username.charAt(0).toUpperCase();
+}
+
+async function enterApp() {
+    document.getElementById('loginOverlay').style.display = 'none';
+    applyPageAccessToUI();
+    await loadAppData();
+
+    // pindah ke halaman pertama yang boleh diakses user ini
+    const firstAllowed = PAGES.find(p => canAccess(p.id));
+    if (firstAllowed) showPage(firstAllowed.id);
+}
+
 // ==================== LOGIKA UI / NAVIGASI ====================
 function toggleSidebar() {
     document.getElementById('sidebar').classList.toggle('open');
@@ -511,6 +662,11 @@ function toggleSidebar() {
 }
 
 function showPage(pageId) {
+    if (!canAccess(pageId)) {
+        showToast('Kamu tidak punya akses ke halaman ini.', 'err');
+        return;
+    }
+
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
 
@@ -520,12 +676,13 @@ function showPage(pageId) {
     if(pageEl) pageEl.classList.add('active');
     if(navEl) navEl.classList.add('active');
 
-    const titles = { dashboard: 'Dashboard', input: 'Input Harian Operator', 'rekap-opr': 'Rekap Operator', 'rekap-owner': 'Rekap Owner', pengaturan: 'Pengaturan (Master)' };
+    const titles = { dashboard: 'Dashboard', input: 'Input Harian Operator', 'rekap-opr': 'Rekap Operator', 'rekap-owner': 'Rekap Owner', pengaturan: 'Pengaturan (Master)', users: 'Manajemen User' };
     document.getElementById('pageTitle').innerText = titles[pageId] || pageId;
 
     if (pageId === 'input') generateAutoJO();
     if (pageId === 'rekap-opr') renderOperatorTable();
     if (pageId === 'rekap-owner') renderMainTable();
+    if (pageId === 'users') renderUserTable();
 
     if (window.innerWidth <= 768 && document.getElementById('sidebar').classList.contains('open')) {
         toggleSidebar();
@@ -839,6 +996,79 @@ function confirmClearAll() {
     };
 }
 
+// ==================== MANAJEMEN USER ====================
+function buildPageAccessCheckboxes() {
+    const wrap = document.getElementById('newUserPageAccess');
+    wrap.innerHTML = PAGES.map(p => `
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--txt2);cursor:pointer">
+            <input type="checkbox" value="${p.id}" class="new-user-page-cb"> ${p.label}
+        </label>
+    `).join('');
+}
+
+async function addUser() {
+    const username = document.getElementById('newUserUsername').value.trim();
+    const password = document.getElementById('newUserPassword').value;
+    const checked = Array.from(document.querySelectorAll('.new-user-page-cb:checked')).map(cb => cb.value);
+
+    if (!username || !password) {
+        showToast('Username dan password wajib diisi!', 'err');
+        return;
+    }
+    if (checked.length === 0) {
+        showToast('Pilih minimal satu halaman yang boleh diakses!', 'err');
+        return;
+    }
+
+    const hash = await sha256(password);
+    const { error } = await sb.from('app_users').insert({
+        username: username,
+        password_hash: hash,
+        role: 'user',
+        page_access: checked
+    });
+
+    if (error) {
+        console.error(error);
+        showToast(error.code === '23505' ? 'Username sudah dipakai!' : 'Gagal menyimpan user', 'err');
+        return;
+    }
+
+    document.getElementById('newUserUsername').value = '';
+    document.getElementById('newUserPassword').value = '';
+    buildPageAccessCheckboxes();
+    showToast(`User ${username} berhasil dibuat`, 'ok');
+    renderUserTable();
+}
+
+async function removeUser(id, username) {
+    if (username === 'admin') {
+        showToast('User admin default tidak bisa dihapus.', 'err');
+        return;
+    }
+    const { error } = await sb.from('app_users').delete().eq('id', id);
+    if (error) { console.error(error); showToast('Gagal menghapus user', 'err'); return; }
+    showToast('User dihapus', 'info');
+    renderUserTable();
+}
+
+async function renderUserTable() {
+    const { data, error } = await sb.from('app_users').select('id, username, role, page_access').order('username');
+    if (error) { console.error(error); showToast('Gagal memuat daftar user', 'err'); return; }
+
+    const tbody = document.getElementById('userTableBody');
+    tbody.innerHTML = data.map(u => {
+        const labels = (u.page_access || []).map(pid => (PAGES.find(p => p.id === pid) || {}).label || pid);
+        return `
+        <tr>
+            <td>${u.username}</td>
+            <td><span class="badge ${u.role === 'admin' ? 'badge-amber' : 'badge-gray'}">${u.role}</span></td>
+            <td style="font-size:12px;color:var(--txt2)">${labels.join(', ')}</td>
+            <td>${u.username === 'admin' ? '-' : `<button class="btn-icon" onclick="removeUser('${u.id}','${u.username}')"><i class="fas fa-trash" style="font-size:11px;color:var(--err)"></i></button>`}</td>
+        </tr>`;
+    }).join('');
+}
+
 // ==================== TOAST NOTIFICATION ====================
 function showToast(msg, type = 'info') {
     const container = document.getElementById('toastContainer');
@@ -854,22 +1084,47 @@ function showToast(msg, type = 'info') {
 }
 
 // ==================== INISIALISASI APLIKASI ====================
+async function loadAppData() {
+    await Promise.all([loadMasterData()]);
+    await loadEntries();
+    populateDropdowns();
+    renderMasterLists();
+    resetForm();
+    updateDashboardKPIs();
+    renderMainTable();
+    renderOperatorTable();
+    buildPageAccessCheckboxes();
+
+    document.getElementById('todayDate').innerText = new Date().toLocaleDateString('id-ID', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+}
+
 document.addEventListener('DOMContentLoaded', async function() {
     initNavigation();
 
-    try {
-        await Promise.all([loadMasterData(), loadBranding()]);
-        await loadEntries();
-        populateDropdowns();
-        renderMasterLists();
-        resetForm();
-        updateDashboardKPIs();
-        renderMainTable();
-        renderOperatorTable();
+    document.getElementById('loginPassword').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') handleLogin();
+    });
+    document.getElementById('loginUsername').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') document.getElementById('loginPassword').focus();
+    });
 
-        document.getElementById('todayDate').innerText = new Date().toLocaleDateString('id-ID', {
-            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-        });
+    try {
+        await loadBranding();
+        document.getElementById('loginBrandName').innerText = document.getElementById('sidebarBrandName').innerText;
+
+        const session = loadSession();
+        if (session) {
+            currentUser = session;
+            document.getElementById('loginOverlay').style.display = 'none';
+            applyPageAccessToUI();
+            await loadAppData();
+            const firstAllowed = PAGES.find(p => canAccess(p.id));
+            if (firstAllowed) showPage(firstAllowed.id);
+        } else {
+            document.getElementById('loginOverlay').style.display = 'flex';
+        }
     } catch(e) {
         console.error('Terjadi error saat inisialisasi aplikasi:', e);
         showToast('Terjadi kesalahan saat memuat data dari Supabase, sebagian fitur mungkin terbatas', 'err');
