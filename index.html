@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PondPress ERP - Sistem Manajemen Pond</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--bg:#0a0a0a;--bg2:#111;--card:#161616;--card2:#1c1c1c;--border:#262626;--border2:#333;--txt:#fafafa;--txt2:#a3a3a3;--muted:#525252;--accent:#f59e0b;--accent-dim:rgba(245,158,11,.12);--accent-h:#d97706;--ok:#22c55e;--err:#ef4444;--info:#06b6d4}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);overflow-x:hidden}
+h1,h2,h3,h4,h5{font-family:'Space Grotesk',sans-serif}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--bg2)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--muted)}
+
+.sidebar{position:fixed;left:0;top:0;width:260px;height:100vh;background:var(--bg2);border-right:1px solid var(--border);z-index:50;display:flex;flex-direction:column;transition:transform .3s ease}
+.sidebar .brand{padding:24px 20px;border-bottom:1px solid var(--border)}
+.sidebar nav{flex:1;padding:12px 10px;overflow-y:auto}
+.sidebar .nav-item{display:flex;align-items:center;gap:12px;padding:11px 16px;border-radius:10px;color:var(--txt2);cursor:pointer;transition:all .2s;margin-bottom:2px;font-size:14px;font-weight:500;position:relative}
+.sidebar .nav-item:hover{color:var(--txt);background:var(--card)}
+.sidebar .nav-item.active{color:var(--accent);background:var(--accent-dim)}
+.sidebar .nav-item.active::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:20px;background:var(--accent);border-radius:0 3px 3px 0}
+.sidebar .nav-item i{width:20px;text-align:center;font-size:15px}
+.sidebar .nav-footer{padding:16px 20px;border-top:1px solid var(--border);font-size:11px;color:var(--muted)}
+
+.main{margin-left:260px;min-height:100vh;position:relative}
+.main::before{content:'';position:fixed;top:-200px;right:-200px;width:600px;height:600px;background:radial-gradient(circle,rgba(245,158,11,.06) 0%,transparent 70%);pointer-events:none;z-index:0}
+.main::after{content:'';position:fixed;bottom:-300px;left:200px;width:500px;height:500px;background:radial-gradient(circle,rgba(6,182,212,.04) 0%,transparent 70%);pointer-events:none;z-index:0}
+
+.topbar{position:sticky;top:0;z-index:30;background:rgba(10,10,10,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:16px 32px;display:flex;align-items:center;justify-content:space-between}
+.topbar h2{font-size:20px;font-weight:600}
+.topbar .mobile-btn{display:none;background:none;border:none;color:var(--txt);font-size:20px;cursor:pointer}
+
+.content{padding:28px 32px;position:relative;z-index:1}
+.page{display:none;animation:fadeUp .35s ease}
+.page.active{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+.kpi-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px;position:relative;overflow:hidden;transition:transform .2s,border-color .2s}
+.kpi-card:hover{transform:translateY(-2px);border-color:var(--border2)}
+.kpi-card .kpi-icon{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:14px}
+.kpi-card .kpi-val{font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:700;line-height:1.1}
+.kpi-card .kpi-label{font-size:13px;color:var(--txt2);margin-top:6px}
+
+.glass-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.glass-card .card-head{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.glass-card .card-head h3{font-size:15px;font-weight:600}
+.glass-card .card-body{padding:22px}
+
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:12px;font-weight:600;color:var(--txt2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+.form-input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--txt);font-size:14px;font-family:'DM Sans',sans-serif;transition:border-color .2s;outline:none}
+.form-input:focus{border-color:var(--accent)}
+.form-input::placeholder{color:var(--muted)}
+select.form-input{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23a3a3a3' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+.form-input:disabled,.form-input[readonly]{opacity:.7;cursor:not-allowed}
+.form-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}
+
+.data-table{width:100%;border-collapse:collapse;font-size:13px}
+.data-table thead{position:sticky;top:0;z-index:2}
+.data-table th{background:var(--bg2);color:var(--txt2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding:12px 14px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+.data-table td{padding:10px 14px;border-bottom:1px solid var(--border);white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis}
+.data-table tbody tr{transition:background .15s}
+.data-table tbody tr:hover{background:var(--card2)}
+.table-wrap{overflow-x:auto;max-height:520px;overflow-y:auto}
+
+.btn{display:inline-flex;align-items:center;gap:8px;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;border:none;transition:all .2s;outline:none}
+.btn:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+.btn-primary{background:var(--accent);color:#000}
+.btn-primary:hover{background:var(--accent-h);transform:translateY(-1px)}
+.btn-ghost{background:transparent;color:var(--txt2);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--card);color:var(--txt);border-color:var(--border2)}
+.btn-danger{background:rgba(239,68,68,.15);color:var(--err);border:1px solid rgba(239,68,68,.2)}
+.btn-danger:hover{background:rgba(239,68,68,.25)}
+.btn-sm{padding:6px 12px;font-size:12px}
+.btn-icon{width:32px;height:32px;padding:0;display:inline-flex;align-items:center;justify-content:center;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--txt2);cursor:pointer;transition:all .15s}
+.btn-icon:hover{background:var(--card2);color:var(--txt);border-color:var(--border2)}
+
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.badge-amber{background:rgba(245,158,11,.15);color:var(--accent)}
+.badge-green{background:rgba(34,197,94,.15);color:var(--ok)}
+.badge-cyan{background:rgba(6,182,212,.15);color:var(--info)}
+.badge-gray{background:rgba(163,163,163,.1);color:var(--txt2)}
+
+.toast-container{position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{padding:14px 20px;border-radius:10px;font-size:13px;font-weight:500;display:flex;align-items:center;gap:10px;animation:toastIn .3s ease;min-width:280px;box-shadow:0 8px 30px rgba(0,0,0,.4)}
+.toast-ok{background:#052e16;border:1px solid rgba(34,197,94,.3);color:var(--ok)}
+.toast-err{background:#2a0a0a;border:1px solid rgba(239,68,68,.3);color:var(--err)}
+.toast-info{background:#0a1e2a;border:1px solid rgba(6,182,212,.3);color:var(--info)}
+@keyframes toastIn{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
+@keyframes toastOut{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(40px)}}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);z-index:100;display:none;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:16px;width:90%;max-width:400px;animation:fadeUp .2s ease}
+.modal-head{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.modal-head h3{font-size:16px;font-weight:600}
+.modal-body{padding:30px 24px;text-align:center}
+.modal-foot{padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:center;gap:10px}
+
+.brand-logo-preview{width:36px;height:36px;border-radius:8px;object-fit:cover;background:var(--accent);display:flex;align-items:center;justify-content:center;overflow:hidden}
+
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  .main{margin-left:0}
+  .topbar{padding:14px 16px}
+  .topbar .mobile-btn{display:block}
+  .content{padding:20px 16px}
+  .form-row{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="brand">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div id="sidebarBrandLogo" class="brand-logo-preview">
+        <i class="fas fa-stamp" style="color:#000;font-size:16px"></i>
+      </div>
+      <div>
+        <div id="sidebarBrandName" style="font-family:'Space Grotesk';font-size:17px;font-weight:700;color:var(--txt)">PondPress</div>
+        <div style="font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase">ERP System</div>
+      </div>
+    </div>
+  </div>
+  <nav>
+    <div class="nav-item active" data-page="dashboard"><i class="fas fa-gauge-high"></i>Dashboard</div>
+    <div class="nav-item" data-page="input"><i class="fas fa-circle-plus"></i>Input Harian</div>
+    <div class="nav-item" data-page="rekap-opr"><i class="fas fa-clipboard-list"></i>Rekap Operator</div>
+    <div class="nav-item" data-page="rekap-owner"><i class="fas fa-crown"></i>Rekap Owner</div>
+    <div class="nav-item" data-page="pengaturan"><i class="fas fa-sliders"></i>Pengaturan (Master)</div>
+  </nav>
+  <div class="nav-footer">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><div class="live-dot" style="width:8px;height:8px;border-radius:50%;background:var(--ok);animation:pulse-dot 2s infinite"></div><span style="color:var(--ok);font-size:10px;font-weight:600">SYSTEM ONLINE</span></div>
+    <span id="footerAppName">PondPress ERP</span> v2.0
+  </div>
+</aside>
+
+<div id="sidebarOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:45;display:none" onclick="toggleSidebar()"></div>
+
+<!-- MAIN CONTENT -->
+<div class="main">
+  <div class="topbar">
+    <div style="display:flex;align-items:center;gap:14px">
+      <button class="mobile-btn" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+      <h2 id="pageTitle">Dashboard</h2>
+    </div>
+    <div style="display:flex;align-items:center;gap:16px">
+      <span style="font-size:13px;color:var(--txt2)" id="todayDate"></span>
+      <div style="width:34px;height:34px;border-radius:8px;background:var(--accent-dim);display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:14px;font-weight:700">A</div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:24px">
+        <div class="kpi-card"><div class="kpi-icon" style="background:rgba(245,158,11,.12);color:var(--accent)"><i class="fas fa-coins"></i></div><div class="kpi-val" id="kpiJual">Rp 0</div><div class="kpi-label">Total Penjualan</div></div>
+        <div class="kpi-card"><div class="kpi-icon" style="background:rgba(6,182,212,.12);color:var(--info)"><i class="fas fa-building"></i></div><div class="kpi-val" id="kpiKantor">Rp 0</div><div class="kpi-label">Total Kantor</div></div>
+        <div class="kpi-card"><div class="kpi-icon" style="background:rgba(34,197,94,.12);color:var(--ok)"><i class="fas fa-user-gear"></i></div><div class="kpi-val" id="kpiOpr">Rp 0</div><div class="kpi-label">Total Operator</div></div>
+        <div class="kpi-card"><div class="kpi-icon" style="background:rgba(168,85,247,.12);color:#a855f7"><i class="fas fa-file-invoice"></i></div><div class="kpi-val" id="kpiJO">0</div><div class="kpi-label">Jumlah JO/PO</div></div>
+      </div>
+      <div class="glass-card">
+        <div class="card-head"><h3>Entri Terbaru</h3></div>
+        <div class="table-wrap" style="max-height:320px">
+          <table class="data-table"><thead><tr><th>Tanggal</th><th>Shift</th><th>PIC</th><th>Item</th><th>Customer</th><th>Total Jual</th></tr></thead><tbody id="recentTable"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- INPUT HARIAN (BERSIH TANPA KALKULASI) -->
+    <div class="page" id="page-input">
+      <div class="glass-card" style="margin-bottom:24px">
+        <div class="card-head">
+          <h3><i class="fas fa-plus-circle" style="color:var(--accent);margin-right:8px"></i>Input Laporan Harian Operator</h3>
+        </div>
+        <div class="card-body">
+          <div style="background:rgba(34,197,94,.08); border:1px solid rgba(34,197,94,.2); border-radius:8px; padding:12px 16px; margin-bottom:20px; display:flex; align-items:center; gap:10px; font-size:13px; color:var(--ok);">
+            <i class="fas fa-shield-halved"></i>
+            <span><strong>Mode Operator:</strong> Form ini hanya mencatat aktivitas fisik. Modul kalkulasi harga dipisahkan dan tidak ditampilkan untuk operator.</span>
+          </div>
+          
+          <input type="hidden" id="editId" value="">
+          <div class="form-row">
+            <div class="form-group"><label>Tanggal</label><input type="date" class="form-input" id="fTanggal"></div>
+            <div class="form-group"><label>Shift</label><select class="form-input" id="fShift"><option value="1">Shift 1</option><option value="2">Shift 2</option></select></div>
+            <div class="form-group"><label>PIC / Operator</label><select class="form-input" id="fPic"></select></div>
+            <div class="form-group"><label>No. Mesin Pond</label><select class="form-input" id="fMesin"></select></div>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label>No. JO/PO <span style="color:var(--accent); font-size:10px; text-transform:none; letter-spacing:0">[OTOMATIS]</span></label>
+              <input type="text" class="form-input" id="fJO" readonly style="background:var(--card2); color:var(--accent); font-weight:700;">
+            </div>
+            <div class="form-group" style="grid-column:span 2">
+              <label>Nama Item/Produk</label>
+              <div style="display:flex;gap:8px">
+                <select class="form-input" id="fItem" style="flex:1"><option value="">-- Pilih Produk --</option></select>
+                <button type="button" class="btn-icon" onclick="openQuickAdd('produk')" title="Tambah Produk Baru"><i class="fas fa-plus"></i></button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Customer</label>
+              <div style="display:flex;gap:8px">
+                <select class="form-input" id="fCustomer" style="flex:1"><option value="">-- Pilih --</option></select>
+                <button type="button" class="btn-icon" onclick="openQuickAdd('customer')" title="Tambah Customer Baru"><i class="fas fa-plus"></i></button>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group"><label>Qty Hasil Pond</label><input type="number" class="form-input" id="fQty" placeholder="0" min="0"></div>
+            <div class="form-group"><label>Jumlah Pisau</label><input type="number" class="form-input" id="fPisau" placeholder="0" min="0"></div>
+            <div class="form-group" style="grid-column:span 2"><label>Keterangan</label><input type="text" class="form-input" id="fKeterangan" placeholder="Opsional"></div>
+          </div>
+
+          <div style="display:flex;gap:10px;margin-top:8px">
+            <button class="btn btn-primary" onclick="saveEntry()"><i class="fas fa-save"></i>Simpan Data</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- REKAP OPERATOR (TANPA HARGA JUAL) -->
+    <div class="page" id="page-rekap-opr">
+      <div style="background:rgba(34,197,94,.08); border:1px solid rgba(34,197,94,.2); border-radius:8px; padding:12px 16px; margin-bottom:16px; display:flex; align-items:center; gap:10px; font-size:13px; color:var(--ok);">
+        <i class="fas fa-shield-halved"></i>
+        <span><strong>Mode Operator:</strong> Rekap ini hanya menampilkan aktivitas produksi, tanpa data harga/nilai jual.</span>
+      </div>
+      <div class="glass-card" style="margin-bottom:16px">
+        <div class="card-body" style="padding:16px 22px">
+          <div class="form-row" style="gap:12px;align-items:end">
+            <div class="form-group" style="margin:0"><label>Dari Tanggal</label><input type="date" class="form-input" id="filterDariOpr"></div>
+            <div class="form-group" style="margin:0"><label>Sampai Tanggal</label><input type="date" class="form-input" id="filterSampaiOpr"></div>
+            <div class="form-group" style="margin:0"><label>Operator</label><select class="form-input" id="filterPicOpr"><option value="">Semua</option></select></div>
+            <div class="form-group" style="margin:0"><button class="btn btn-primary" onclick="renderOperatorTable()" style="height:42px"><i class="fas fa-filter"></i>Filter</button></div>
+          </div>
+        </div>
+      </div>
+      <div class="glass-card">
+        <div class="card-head">
+          <h3>Rekap Produksi Operator</h3>
+          <span style="font-size:12px;color:var(--muted);display:flex;align-items:center" id="tableCountOpr">0 data</span>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" id="tableOpr">
+            <thead><tr><th>No</th><th>Tanggal</th><th>Shift</th><th>PIC</th><th>Mesin</th><th>JO</th><th>Item/Produk</th><th>Customer</th><th>Qty</th><th>Pisau</th></tr></thead>
+            <tbody id="tableBodyOpr"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- REKAP OWNER (LENGKAP) -->
+    <div class="page" id="page-rekap-owner">
+      <div style="background:rgba(245,158,11,.08); border:1px solid rgba(245,158,11,.2); border-radius:8px; padding:12px 16px; margin-bottom:16px; display:flex; align-items:center; gap:10px; font-size:13px; color:var(--accent);">
+        <i class="fas fa-crown"></i>
+        <span><strong>Mode Owner:</strong> Rekap lengkap termasuk nilai/harga jual per entri.</span>
+      </div>
+      <div class="glass-card" style="margin-bottom:16px">
+        <div class="card-body" style="padding:16px 22px">
+          <div class="form-row" style="gap:12px;align-items:end">
+            <div class="form-group" style="margin:0"><label>Dari Tanggal</label><input type="date" class="form-input" id="filterDari"></div>
+            <div class="form-group" style="margin:0"><label>Sampai Tanggal</label><input type="date" class="form-input" id="filterSampai"></div>
+            <div class="form-group" style="margin:0"><label>Operator</label><select class="form-input" id="filterPic"><option value="">Semua</option></select></div>
+            <div class="form-group" style="margin:0"><button class="btn btn-primary" onclick="renderMainTable()" style="height:42px"><i class="fas fa-filter"></i>Filter</button></div>
+          </div>
+        </div>
+      </div>
+      <div class="glass-card">
+        <div class="card-head">
+          <h3>Data Laporan Keseluruhan</h3>
+          <span style="font-size:12px;color:var(--muted);display:flex;align-items:center" id="tableCount">0 data</span>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" id="mainTable">
+            <thead><tr><th>No</th><th>Tanggal</th><th>Shift</th><th>PIC</th><th>Mesin</th><th>JO</th><th>Item/Produk</th><th>Customer</th><th>Qty</th><th>Pisau</th><th>Total Jual</th><th>Aksi</th></tr></thead>
+            <tbody id="mainTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- PENGATURAN (MASTER & BRANDING) -->
+    <div class="page" id="page-pengaturan">
+      <!-- CUSTOM BRANDING -->
+      <div class="glass-card" style="margin-bottom:16px; border-color:var(--accent); border-width:1px;">
+        <div class="card-head"><h3><i class="fas fa-palette" style="color:var(--accent);margin-right:8px"></i>Custom Identitas Aplikasi</h3></div>
+        <div class="card-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Nama Aplikasi</label>
+              <input type="text" class="form-input" id="settingAppName" placeholder="Contoh: PondPress ERP" value="PondPress">
+            </div>
+            <div class="form-group">
+              <label>Upload Logo Aplikasi</label>
+              <input type="file" class="form-input" id="settingAppLogo" accept="image/*" style="padding:8px">
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="saveBranding()"><i class="fas fa-check"></i>Simpan Perubahan Tampilan</button>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+        <div class="glass-card"><div class="card-head"><h3><i class="fas fa-users" style="color:var(--accent);margin-right:8px"></i>Daftar PIC / Operator</h3></div><div class="card-body">
+          <div style="display:flex;gap:8px;margin-bottom:14px"><input type="text" class="form-input" id="newPic" placeholder="Nama PIC baru" style="flex:1"><button class="btn btn-primary btn-sm" onclick="addMaster('pic')"><i class="fas fa-plus"></i></button></div>
+          <div id="picList" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+        </div></div>
+        <div class="glass-card"><div class="card-head"><h3><i class="fas fa-gears" style="color:var(--info);margin-right:8px"></i>Daftar Mesin Pond</h3></div><div class="card-body">
+          <div style="display:flex;gap:8px;margin-bottom:14px"><input type="text" class="form-input" id="newMesin" placeholder="Kode mesin baru" style="flex:1"><button class="btn btn-primary btn-sm" onclick="addMaster('mesin')"><i class="fas fa-plus"></i></button></div>
+          <div id="mesinList" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+        </div></div>
+        <div class="glass-card"><div class="card-head"><h3><i class="fas fa-box" style="color:#a855f7;margin-right:8px"></i>Daftar Produk</h3></div><div class="card-body">
+          <div style="display:flex;gap:8px;margin-bottom:14px"><input type="text" class="form-input" id="newProduk" placeholder="Nama produk baru" style="flex:1"><button class="btn btn-primary btn-sm" onclick="addMaster('produk')"><i class="fas fa-plus"></i></button></div>
+          <div id="produkList" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+        </div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+        <div class="glass-card"><div class="card-head"><h3><i class="fas fa-address-book" style="color:var(--ok);margin-right:8px"></i>Daftar Customer</h3></div><div class="card-body">
+          <div style="display:flex;gap:8px;margin-bottom:14px"><input type="text" class="form-input" id="newCustomer" placeholder="Nama customer baru" style="flex:1"><button class="btn btn-primary btn-sm" onclick="addMaster('customer')"><i class="fas fa-plus"></i></button></div>
+          <div id="customerList" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+        </div></div>
+        <div class="glass-card"><div class="card-head"><h3><i class="fas fa-database" style="color:var(--err);margin-right:8px"></i>Manajemen Data</h3></div><div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+          <button class="btn btn-danger" onclick="confirmClearAll()" style="justify-content:flex-start"><i class="fas fa-trash-can"></i>Hapus Semua Data Input Baru</button>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px">Data mentah bawaan: <span id="dataCount">0</span> entri.</div>
+        </div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Modal Hapus -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal">
+    <div class="modal-head"><h3>Konfirmasi</h3><button class="btn-icon" onclick="closeModal()"><i class="fas fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <i class="fas fa-triangle-exclamation" style="font-size:40px;color:var(--err);margin-bottom:16px;display:block"></i>
+      <p style="font-size:14px;color:var(--txt2)" id="deleteMsg">Yakin ingin menghapus data ini?</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal()">Batal</button>
+      <button class="btn btn-danger" id="confirmDeleteBtn">Hapus</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Tambah Cepat (Produk / Customer) -->
+<div class="modal-overlay" id="quickAddModal">
+  <div class="modal">
+    <div class="modal-head"><h3 id="quickAddTitle">Tambah Data</h3><button class="btn-icon" onclick="closeQuickAdd()"><i class="fas fa-xmark"></i></button></div>
+    <div class="modal-body" style="text-align:left">
+      <div class="form-group" style="margin-bottom:0">
+        <label id="quickAddLabel">Nama</label>
+        <input type="text" class="form-input" id="quickAddInput" placeholder="Ketik nama baru...">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeQuickAdd()">Batal</button>
+      <button class="btn btn-primary" id="quickAddSaveBtn"><i class="fas fa-check"></i>Simpan & Pilih</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ==================== SUPABASE CONFIG ====================
+// TODO: ganti dengan URL & anon key project Supabase kamu (Project Settings > API)
+const SUPABASE_URL = 'https://ytbaiinupocfmafutwwz.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl0YmFpaW51cG9jZm1hZnV0d3d6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgzMTY3ODQsImV4cCI6MjEwMzg5Mjc4NH0.jH7V226hnoy14WmHHju5WjgV816ffV4RONe0OJp9AG0';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let allData = [];
+let masterPics = [];
+let masterMesins = [];
+let masterCustomers = [];
+let masterProduk = [];
+
+function extractNum(str) {
+    return parseInt(String(str).replace(/[^0-9]/g, '')) || 0;
+}
+
+function rp(val) {
+    if (!val || isNaN(val)) return 'Rp 0';
+    return 'Rp ' + Number(val).toLocaleString('id-ID');
+}
+
+// ==================== LOAD DATA DARI SUPABASE ====================
+async function loadMasterData() {
+    const [pic, mesin, cust, produk] = await Promise.all([
+        sb.from('master_pic').select('id, nama').order('nama'),
+        sb.from('master_mesin').select('id, kode').order('kode'),
+        sb.from('master_customer').select('id, nama').order('nama'),
+        sb.from('master_produk').select('id, nama').order('nama'),
+    ]);
+    const err = pic.error || mesin.error || cust.error || produk.error;
+    if (err) {
+        console.error('Gagal load master data:', err);
+        showToast('Gagal memuat master data dari Supabase', 'err');
+        return;
+    }
+    masterPics = pic.data;
+    masterMesins = mesin.data;
+    masterCustomers = cust.data;
+    masterProduk = produk.data;
+}
+
+async function loadEntries() {
+    const { data, error } = await sb
+        .from('entries')
+        .select(`
+            id, tanggal, shift, jo, qty, pisau, total_jual, keterangan,
+            pic:master_pic(id, nama),
+            mesin:master_mesin(id, kode),
+            produk:master_produk(id, nama),
+            customer:master_customer(id, nama)
+        `)
+        .order('tanggal', { ascending: false })
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error('Gagal load entries:', error);
+        showToast('Gagal memuat data entri dari Supabase', 'err');
+        return;
+    }
+
+    allData = data.map(d => ({
+        id: d.id,
+        tanggal: d.tanggal,
+        shift: d.shift,
+        pic: d.pic ? d.pic.nama : '-',
+        mesin: d.mesin ? d.mesin.kode : '-',
+        jo: d.jo,
+        item: d.produk ? d.produk.nama : '-',
+        customer: d.customer ? d.customer.nama : '-',
+        qty: d.qty || 0,
+        pisau: d.pisau || 0,
+        totalJualStr: d.total_jual ? rp(d.total_jual) : 'Belum Dihitung'
+    }));
+}
+
+// ==================== LOGIKA BRANDING (app_settings, ganti localStorage) ====================
+async function loadBranding() {
+    const { data, error } = await sb.from('app_settings').select('key, value').in('key', ['app_name', 'app_logo_url']);
+    if (error) { console.warn('Gagal memuat pengaturan branding:', error); return; }
+
+    const settings = {};
+    (data || []).forEach(row => settings[row.key] = row.value);
+
+    if (settings.app_name) {
+        document.getElementById('sidebarBrandName').innerText = settings.app_name;
+        document.getElementById('settingAppName').value = settings.app_name;
+        document.title = settings.app_name + " - ERP System";
+        document.getElementById('footerAppName').innerText = settings.app_name;
+    }
+    if (settings.app_logo_url) {
+        const logoEl = document.getElementById('sidebarBrandLogo');
+        logoEl.innerHTML = `<img src="${settings.app_logo_url}" style="width:100%;height:100%;object-fit:cover;">`;
+    }
+}
+
+async function saveBranding() {
+    const nameInput = document.getElementById('settingAppName').value;
+    const logoInput = document.getElementById('settingAppLogo').files[0];
+
+    if (nameInput) {
+        const { error } = await sb.from('app_settings').upsert({ key: 'app_name', value: nameInput });
+        if (error) { console.error(error); showToast('Gagal menyimpan nama aplikasi', 'err'); return; }
+        document.getElementById('sidebarBrandName').innerText = nameInput;
+        document.title = nameInput + " - ERP System";
+        document.getElementById('footerAppName').innerText = nameInput;
+    }
+
+    if (logoInput) {
+        // Butuh bucket Storage bernama "branding" (public) yang dibuat sekali di dashboard Supabase
+        const filePath = `logo-${Date.now()}-${logoInput.name}`;
+        const { error: uploadError } = await sb.storage.from('branding').upload(filePath, logoInput, { upsert: true });
+        if (uploadError) {
+            console.error(uploadError);
+            showToast('Gagal upload logo (pastikan bucket "branding" sudah dibuat & public)', 'err');
+            return;
+        }
+        const { data: urlData } = sb.storage.from('branding').getPublicUrl(filePath);
+        const { error } = await sb.from('app_settings').upsert({ key: 'app_logo_url', value: urlData.publicUrl });
+        if (error) { console.error(error); showToast('Gagal menyimpan logo', 'err'); return; }
+
+        await loadBranding();
+        showToast('Logo dan Nama berhasil diperbarui!', 'ok');
+    } else if (nameInput) {
+        showToast('Nama aplikasi berhasil diperbarui!', 'ok');
+    }
+}
+
+// ==================== LOGIKA UI / NAVIGASI ====================
+function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebarOverlay').style.display =
+        document.getElementById('sidebar').classList.contains('open') ? 'block' : 'none';
+}
+
+function showPage(pageId) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+    const pageEl = document.getElementById('page-' + pageId);
+    const navEl = document.querySelector(`[data-page="${pageId}"]`);
+
+    if(pageEl) pageEl.classList.add('active');
+    if(navEl) navEl.classList.add('active');
+
+    const titles = { dashboard: 'Dashboard', input: 'Input Harian Operator', 'rekap-opr': 'Rekap Operator', 'rekap-owner': 'Rekap Owner', pengaturan: 'Pengaturan (Master)' };
+    document.getElementById('pageTitle').innerText = titles[pageId] || pageId;
+
+    if (pageId === 'input') generateAutoJO();
+    if (pageId === 'rekap-opr') renderOperatorTable();
+    if (pageId === 'rekap-owner') renderMainTable();
+
+    if (window.innerWidth <= 768 && document.getElementById('sidebar').classList.contains('open')) {
+        toggleSidebar();
+    }
+}
+
+function initNavigation() {
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', function() {
+            showPage(this.dataset.page);
+        });
+    });
+}
+
+function populateDropdowns() {
+    const picSelect = document.getElementById('fPic');
+    const mesinSelect = document.getElementById('fMesin');
+    const custSelect = document.getElementById('fCustomer');
+    const produkSelect = document.getElementById('fItem');
+    const filterPic = document.getElementById('filterPic');
+    const filterPicOpr = document.getElementById('filterPicOpr');
+
+    const custVal = custSelect.value, produkVal = produkSelect.value;
+
+    picSelect.innerHTML = ''; mesinSelect.innerHTML = '';
+    custSelect.innerHTML = '<option value="">-- Pilih --</option>';
+    produkSelect.innerHTML = '<option value="">-- Pilih Produk --</option>';
+    filterPic.innerHTML = '<option value="">Semua</option>';
+    filterPicOpr.innerHTML = '<option value="">Semua</option>';
+
+    masterPics.forEach(p => {
+        picSelect.innerHTML += `<option value="${p.id}">${p.nama}</option>`;
+        filterPic.innerHTML += `<option value="${p.nama}">${p.nama}</option>`;
+        filterPicOpr.innerHTML += `<option value="${p.nama}">${p.nama}</option>`;
+    });
+    masterMesins.forEach(m => { mesinSelect.innerHTML += `<option value="${m.id}">${m.kode}</option>`; });
+    masterCustomers.forEach(c => { custSelect.innerHTML += `<option value="${c.id}">${c.nama}</option>`; });
+    masterProduk.forEach(pr => { produkSelect.innerHTML += `<option value="${pr.id}">${pr.nama}</option>`; });
+
+    if (custVal) custSelect.value = custVal;
+    if (produkVal) produkSelect.value = produkVal;
+}
+
+// ==================== MASTER DATA LOGIC ====================
+function getMasterArr(type) {
+    if (type === 'pic') return masterPics;
+    if (type === 'mesin') return masterMesins;
+    if (type === 'customer') return masterCustomers;
+    if (type === 'produk') return masterProduk;
+    return null;
+}
+
+function getMasterTable(type) {
+    return { pic: 'master_pic', mesin: 'master_mesin', customer: 'master_customer', produk: 'master_produk' }[type];
+}
+
+function getMasterCol(type) {
+    return type === 'mesin' ? 'kode' : 'nama';
+}
+
+async function addMaster(type) {
+    const inputIds = { pic: 'newPic', mesin: 'newMesin', customer: 'newCustomer', produk: 'newProduk' };
+    const input = document.getElementById(inputIds[type]);
+    const val = input.value.trim();
+    if (!val) return;
+
+    const arr = getMasterArr(type);
+    const col = getMasterCol(type);
+
+    if (arr.some(item => item[col] === val)) {
+        showToast('Data sudah ada!', 'err');
+        return;
+    }
+
+    const { error } = await sb.from(getMasterTable(type)).insert({ [col]: val });
+    if (error) { console.error(error); showToast('Gagal menyimpan ke Supabase', 'err'); return; }
+
+    input.value = '';
+    await loadMasterData();
+    populateDropdowns();
+    renderMasterLists();
+    showToast(`Berhasil menambahkan ${val}`, 'ok');
+}
+
+async function removeMaster(type, id) {
+    const { error } = await sb.from(getMasterTable(type)).delete().eq('id', id);
+    if (error) { console.error(error); showToast('Gagal menghapus (mungkin masih dipakai di entri)', 'err'); return; }
+    await loadMasterData();
+    populateDropdowns();
+    renderMasterLists();
+}
+
+function renderMasterLists() {
+    document.getElementById('picList').innerHTML = masterPics.map(p => `<span class="badge badge-amber" style="cursor:pointer" onclick="removeMaster('pic','${p.id}')">${p.nama} <i class="fas fa-xmark" style="margin-left:4px;font-size:10px"></i></span>`).join('');
+    document.getElementById('mesinList').innerHTML = masterMesins.map(m => `<span class="badge badge-cyan" style="cursor:pointer" onclick="removeMaster('mesin','${m.id}')">${m.kode} <i class="fas fa-xmark" style="margin-left:4px;font-size:10px"></i></span>`).join('');
+    document.getElementById('customerList').innerHTML = masterCustomers.map(c => `<span class="badge badge-green" style="cursor:pointer" onclick="removeMaster('customer','${c.id}')">${c.nama} <i class="fas fa-xmark" style="margin-left:4px;font-size:10px"></i></span>`).join('');
+    document.getElementById('produkList').innerHTML = masterProduk.map(pr => `<span class="badge badge-gray" style="cursor:pointer" onclick="removeMaster('produk','${pr.id}')">${pr.nama} <i class="fas fa-xmark" style="margin-left:4px;font-size:10px"></i></span>`).join('');
+}
+
+// ==================== TAMBAH CEPAT (DARI FORM INPUT HARIAN) ====================
+let quickAddType = null;
+function openQuickAdd(type) {
+    quickAddType = type;
+    const labels = { produk: 'Nama Produk Baru', customer: 'Nama Customer Baru' };
+    document.getElementById('quickAddTitle').innerText = type === 'produk' ? 'Tambah Produk' : 'Tambah Customer';
+    document.getElementById('quickAddLabel').innerText = labels[type] || 'Nama';
+    document.getElementById('quickAddInput').value = '';
+    document.getElementById('quickAddModal').classList.add('show');
+    setTimeout(() => document.getElementById('quickAddInput').focus(), 50);
+}
+
+function closeQuickAdd() {
+    document.getElementById('quickAddModal').classList.remove('show');
+    quickAddType = null;
+}
+
+document.getElementById('quickAddSaveBtn').onclick = async function() {
+    const val = document.getElementById('quickAddInput').value.trim();
+    if (!val) { showToast('Nama tidak boleh kosong!', 'err'); return; }
+
+    const arr = getMasterArr(quickAddType);
+    const col = getMasterCol(quickAddType);
+    const existing = arr.find(item => item[col] === val);
+    let newId = null;
+
+    if (existing) {
+        showToast('Data sudah ada, langsung dipilih.', 'info');
+        newId = existing.id;
+    } else {
+        const { data, error } = await sb.from(getMasterTable(quickAddType)).insert({ [col]: val }).select().single();
+        if (error) { console.error(error); showToast('Gagal menyimpan ke Supabase', 'err'); return; }
+        newId = data.id;
+        showToast(`Berhasil menambahkan ${val}`, 'ok');
+    }
+
+    await loadMasterData();
+    populateDropdowns();
+    renderMasterLists();
+
+    if (quickAddType === 'produk') document.getElementById('fItem').value = newId;
+    if (quickAddType === 'customer') document.getElementById('fCustomer').value = newId;
+
+    closeQuickAdd();
+};
+
+document.getElementById('quickAddInput')?.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('quickAddSaveBtn').click(); }
+});
+
+// ==================== INPUT & DATA LOGIC ====================
+function generateAutoJO() {
+    let maxJO = 0;
+    allData.forEach(d => {
+        if (!isNaN(d.jo) && d.jo > maxJO) maxJO = d.jo;
+    });
+    document.getElementById('fJO').value = maxJO + 1;
+}
+
+function resetForm() {
+    document.getElementById('fTanggal').value = new Date().toISOString().split('T')[0];
+    document.getElementById('fItem').value = '';
+    document.getElementById('fCustomer').value = '';
+    document.getElementById('fQty').value = '';
+    document.getElementById('fPisau').value = '';
+    document.getElementById('fKeterangan').value = '';
+    generateAutoJO();
+}
+
+async function saveEntry() {
+    const tanggal = document.getElementById('fTanggal').value;
+    const produkId = document.getElementById('fItem').value;
+    if (!tanggal || !produkId) {
+        showToast('Tanggal dan Item wajib diisi!', 'err');
+        return;
+    }
+
+    const payload = {
+        tanggal: tanggal,
+        shift: parseInt(document.getElementById('fShift').value),
+        pic_id: document.getElementById('fPic').value || null,
+        mesin_id: document.getElementById('fMesin').value || null,
+        jo: parseInt(document.getElementById('fJO').value) || 0,
+        produk_id: produkId,
+        customer_id: document.getElementById('fCustomer').value || null,
+        qty: parseInt(document.getElementById('fQty').value) || 0,
+        pisau: parseInt(document.getElementById('fPisau').value) || 0,
+        keterangan: document.getElementById('fKeterangan').value || null
+    };
+
+    const { error } = await sb.from('entries').insert(payload);
+    if (error) { console.error(error); showToast('Gagal menyimpan ke Supabase', 'err'); return; }
+
+    showToast('Data berhasil disimpan (JO Otomatis: ' + payload.jo + ')', 'ok');
+    resetForm();
+    await loadEntries();
+    updateDashboardKPIs();
+    renderMainTable();
+    renderOperatorTable();
+}
+
+function deleteEntry(id) {
+    document.getElementById('deleteMsg').innerText = 'Yakin ingin menghapus data ini?';
+    document.getElementById('deleteModal').classList.add('show');
+    document.getElementById('confirmDeleteBtn').onclick = async function() {
+        const { error } = await sb.from('entries').delete().eq('id', id);
+        if (error) { console.error(error); showToast('Gagal menghapus data', 'err'); closeModal(); return; }
+        closeModal();
+        await loadEntries();
+        updateDashboardKPIs();
+        renderMainTable();
+        renderOperatorTable();
+        showToast('Data dihapus', 'info');
+    };
+}
+
+function closeModal() {
+    document.getElementById('deleteModal').classList.remove('show');
+}
+
+function filterData(dariId, sampaiId, picId) {
+    let filtered = [...allData];
+    const dari = document.getElementById(dariId).value;
+    const sampai = document.getElementById(sampaiId).value;
+    const pic = document.getElementById(picId).value;
+
+    if(dari) filtered = filtered.filter(d => d.tanggal >= dari);
+    if(sampai) filtered = filtered.filter(d => d.tanggal <= sampai);
+    if(pic) filtered = filtered.filter(d => d.pic === pic);
+    return filtered;
+}
+
+// REKAP OWNER: data lengkap termasuk Total Jual, plus aksi hapus
+function renderMainTable() {
+    const filtered = filterData('filterDari', 'filterSampai', 'filterPic');
+
+    const tbody = document.getElementById('mainTableBody');
+    document.getElementById('tableCount').innerText = filtered.length + ' data';
+
+    tbody.innerHTML = filtered.map((d, i) => `
+        <tr>
+            <td>${i+1}</td>
+            <td>${d.tanggal}</td>
+            <td>S${d.shift}</td>
+            <td><span class="badge badge-green">${d.pic}</span></td>
+            <td>${d.mesin}</td>
+            <td>${d.jo}</td>
+            <td>${d.item}</td>
+            <td>${d.customer}</td>
+            <td>${d.qty > 0 ? d.qty.toLocaleString('id-ID') : '-'}</td>
+            <td>${d.pisau > 0 ? d.pisau : '-'}</td>
+            <td style="color:var(--accent); font-weight:600">${d.totalJualStr}</td>
+            <td><button class="btn-icon" onclick="deleteEntry('${d.id}')"><i class="fas fa-trash" style="font-size:11px;color:var(--err)"></i></button></td>
+        </tr>
+    `).join('');
+}
+
+// REKAP OPERATOR: aktivitas produksi saja, TANPA kolom/data harga jual
+function renderOperatorTable() {
+    const filtered = filterData('filterDariOpr', 'filterSampaiOpr', 'filterPicOpr');
+
+    const tbody = document.getElementById('tableBodyOpr');
+    document.getElementById('tableCountOpr').innerText = filtered.length + ' data';
+
+    tbody.innerHTML = filtered.map((d, i) => `
+        <tr>
+            <td>${i+1}</td>
+            <td>${d.tanggal}</td>
+            <td>S${d.shift}</td>
+            <td><span class="badge badge-green">${d.pic}</span></td>
+            <td>${d.mesin}</td>
+            <td>${d.jo}</td>
+            <td>${d.item}</td>
+            <td>${d.customer}</td>
+            <td>${d.qty > 0 ? d.qty.toLocaleString('id-ID') : '-'}</td>
+            <td>${d.pisau > 0 ? d.pisau : '-'}</td>
+        </tr>
+    `).join('');
+}
+
+function updateDashboardKPIs() {
+    let totalJual = 0;
+    allData.forEach(d => {
+        totalJual += extractNum(d.totalJualStr);
+    });
+
+    document.getElementById('kpiJual').innerText = rp(totalJual);
+    document.getElementById('kpiJO').innerText = allData.length;
+    document.getElementById('dataCount').innerText = allData.length;
+
+    const recentBody = document.getElementById('recentTable');
+    recentBody.innerHTML = allData.slice(0, 5).map(d => `
+        <tr>
+            <td>${d.tanggal}</td><td>S${d.shift}</td><td>${d.pic}</td><td>${d.item}</td><td>${d.customer}</td>
+            <td style="color:var(--accent)">${d.totalJualStr}</td>
+        </tr>
+    `).join('');
+}
+
+function confirmClearAll() {
+    document.getElementById('deleteMsg').innerText = 'PERINGATAN: Hapus SEMUA data entri di database Supabase? Tindakan ini tidak bisa dibatalkan.';
+    document.getElementById('deleteModal').classList.add('show');
+    document.getElementById('confirmDeleteBtn').onclick = async function() {
+        const { error } = await sb.from('entries').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        if (error) { console.error(error); showToast('Gagal menghapus data', 'err'); closeModal(); return; }
+        closeModal();
+        await loadEntries();
+        updateDashboardKPIs();
+        renderMainTable();
+        renderOperatorTable();
+        showToast('Semua data berhasil dihapus', 'info');
+    };
+}
+
+// ==================== TOAST NOTIFICATION ====================
+function showToast(msg, type = 'info') {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    const icons = { ok: 'fa-check-circle', err: 'fa-times-circle', info: 'fa-info-circle' };
+    toast.innerHTML = `<i class="fas ${icons[type]}"></i><span>${msg}</span>`;
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.style.animation = 'toastOut .3s ease forwards';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// ==================== INISIALISASI APLIKASI ====================
+document.addEventListener('DOMContentLoaded', async function() {
+    initNavigation();
+
+    try {
+        await Promise.all([loadMasterData(), loadBranding()]);
+        await loadEntries();
+        populateDropdowns();
+        renderMasterLists();
+        resetForm();
+        updateDashboardKPIs();
+        renderMainTable();
+        renderOperatorTable();
+
+        document.getElementById('todayDate').innerText = new Date().toLocaleDateString('id-ID', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        });
+    } catch(e) {
+        console.error('Terjadi error saat inisialisasi aplikasi:', e);
+        showToast('Terjadi kesalahan saat memuat data dari Supabase, sebagian fitur mungkin terbatas', 'err');
+    }
+});
+</script>
+</body>
+</html>
