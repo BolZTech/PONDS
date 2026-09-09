@@ -799,50 +799,87 @@ function renderMasterLists() {
 }
 
 // ==================== SETTING HARGA PER PRODUK ====================
+function renderProdukHargaRow(pr) {
+    const isMinimal = pr.kategori_bayar === 'Minimal Order';
+    const kategoriSelect = `
+        <select class="form-input ph-kategori" style="min-width:130px" onchange="onKategoriHargaChange('${pr.id}')">
+            <option value="Per Lembar" ${pr.kategori_bayar === 'Per Lembar' ? 'selected' : ''}>Per Lembar</option>
+            <option value="Per Pisau" ${pr.kategori_bayar === 'Per Pisau' ? 'selected' : ''}>Per Pisau</option>
+            <option value="Minimal Order" ${isMinimal ? 'selected' : ''}>Minimal Order</option>
+        </select>`;
+
+    const hargaCells = isMinimal
+        ? `<td colspan="2">
+             <input type="number" class="form-input ph-harga-kantor" style="width:140px" value="${pr.harga_kantor || 0}" title="Diisi sebagai harga jual flat">
+             <div style="font-size:11px;color:var(--muted,#666);margin-top:2px">Harga jual flat (total)</div>
+           </td>`
+        : `<td><input type="number" class="form-input ph-harga-opr" style="width:100px" value="${pr.harga_opr || 0}"></td>
+           <td><input type="number" class="form-input ph-harga-kantor" style="width:110px" value="${pr.harga_kantor || 0}"></td>`;
+
+    const persenCells = isMinimal
+        ? `<td><input type="number" class="form-input ph-persen-opr" style="width:70px" value="${pr.persen_opr ?? 40}"></td>
+           <td><input type="number" class="form-input ph-persen-kantor" style="width:70px" value="${pr.persen_kantor ?? 60}"></td>`
+        : `<td colspan="2" style="text-align:center;color:var(--muted,#666);font-size:12px">— tidak dipakai —</td>`;
+
+    return `
+        <tr data-produk-id="${pr.id}">
+            <td>${pr.nama}</td>
+            <td>${kategoriSelect}</td>
+            ${hargaCells}
+            ${persenCells}
+            <td><button class="btn btn-primary btn-sm" onclick="saveHargaProduk('${pr.id}')"><i class="fas fa-check"></i></button></td>
+        </tr>`;
+}
+
 function renderProdukHargaTable() {
     const tbody = document.getElementById('produkHargaTableBody');
     if (!tbody) return;
-
-    tbody.innerHTML = masterProduk.map(pr => {
-        const isMinimal = pr.kategori_bayar === 'Minimal Order';
-        return `
-        <tr data-produk-id="${pr.id}">
-            <td>${pr.nama}</td>
-            <td>
-                <select class="form-input ph-kategori" style="min-width:130px" onchange="onKategoriHargaChange('${pr.id}')">
-                    <option value="Per Lembar" ${pr.kategori_bayar === 'Per Lembar' ? 'selected' : ''}>Per Lembar</option>
-                    <option value="Per Pisau" ${pr.kategori_bayar === 'Per Pisau' ? 'selected' : ''}>Per Pisau</option>
-                    <option value="Minimal Order" ${isMinimal ? 'selected' : ''}>Minimal Order</option>
-                </select>
-            </td>
-            <td><input type="number" class="form-input ph-harga-opr" style="width:100px" value="${pr.harga_opr || 0}" ${isMinimal ? 'disabled' : ''} title="${isMinimal ? 'Tidak dipakai untuk Minimal Order' : ''}"></td>
-            <td><input type="number" class="form-input ph-harga-kantor" style="width:110px" value="${pr.harga_kantor || 0}" title="${isMinimal ? 'Diisi sebagai harga jual flat' : ''}"></td>
-            <td><input type="number" class="form-input ph-persen-opr" style="width:70px" value="${pr.persen_opr ?? 40}" ${!isMinimal ? 'disabled' : ''}></td>
-            <td><input type="number" class="form-input ph-persen-kantor" style="width:70px" value="${pr.persen_kantor ?? 60}" ${!isMinimal ? 'disabled' : ''}></td>
-            <td><button class="btn btn-primary btn-sm" onclick="saveHargaProduk('${pr.id}')"><i class="fas fa-check"></i></button></td>
-        </tr>`;
-    }).join('');
+    tbody.innerHTML = masterProduk.map(renderProdukHargaRow).join('');
 }
 
 function onKategoriHargaChange(produkId) {
     const row = document.querySelector(`tr[data-produk-id="${produkId}"]`);
     const kategori = row.querySelector('.ph-kategori').value;
-    const isMinimal = kategori === 'Minimal Order';
-    row.querySelector('.ph-harga-opr').disabled = isMinimal;
-    row.querySelector('.ph-persen-opr').disabled = !isMinimal;
-    row.querySelector('.ph-persen-kantor').disabled = !isMinimal;
+    const existing = masterProduk.find(p => p.id === produkId) || {};
+
+    // Simpan nilai yang sudah diketik user sebelum tampilan baris dibangun ulang,
+    // supaya angka yang relevan (terutama Harga Kantor) tidak hilang saat ganti kategori.
+    const hargaOprEl = row.querySelector('.ph-harga-opr');
+    const hargaKantorEl = row.querySelector('.ph-harga-kantor');
+    const persenOprEl = row.querySelector('.ph-persen-opr');
+    const persenKantorEl = row.querySelector('.ph-persen-kantor');
+
+    const current = {
+        id: produkId,
+        nama: existing.nama,
+        kategori_bayar: kategori,
+        harga_opr: hargaOprEl ? (parseFloat(hargaOprEl.value) || 0) : (existing.harga_opr || 0),
+        harga_kantor: hargaKantorEl ? (parseFloat(hargaKantorEl.value) || 0) : (existing.harga_kantor || 0),
+        persen_opr: persenOprEl ? (parseFloat(persenOprEl.value) || 0) : (existing.persen_opr ?? 40),
+        persen_kantor: persenKantorEl ? (parseFloat(persenKantorEl.value) || 0) : (existing.persen_kantor ?? 60)
+    };
+
+    row.outerHTML = renderProdukHargaRow(current);
 }
 
 async function saveHargaProduk(produkId) {
     const row = document.querySelector(`tr[data-produk-id="${produkId}"]`);
     const kategori = row.querySelector('.ph-kategori').value;
-    const hargaOpr = parseFloat(row.querySelector('.ph-harga-opr').value) || 0;
-    const hargaKantor = parseFloat(row.querySelector('.ph-harga-kantor').value) || 0;
-    const persenOpr = parseFloat(row.querySelector('.ph-persen-opr').value) || 0;
-    const persenKantor = parseFloat(row.querySelector('.ph-persen-kantor').value) || 0;
+    const isMinimal = kategori === 'Minimal Order';
+    const existing = masterProduk.find(p => p.id === produkId) || {};
 
-    // SECURITY: split persen wajib total 100% sebelum boleh disimpan
-    if (kategori === 'Minimal Order' && (persenOpr + persenKantor !== 100)) {
+    const hargaOprEl = row.querySelector('.ph-harga-opr');
+    const hargaKantorEl = row.querySelector('.ph-harga-kantor');
+    const persenOprEl = row.querySelector('.ph-persen-opr');
+    const persenKantorEl = row.querySelector('.ph-persen-kantor');
+
+    const hargaOpr = hargaOprEl ? (parseFloat(hargaOprEl.value) || 0) : (existing.harga_opr || 0);
+    const hargaKantor = hargaKantorEl ? (parseFloat(hargaKantorEl.value) || 0) : (existing.harga_kantor || 0);
+    const persenOpr = persenOprEl ? (parseFloat(persenOprEl.value) || 0) : (existing.persen_opr ?? 40);
+    const persenKantor = persenKantorEl ? (parseFloat(persenKantorEl.value) || 0) : (existing.persen_kantor ?? 60);
+
+    // SECURITY: split persen wajib total 100% sebelum boleh disimpan (khusus Minimal Order)
+    if (isMinimal && (persenOpr + persenKantor !== 100)) {
         showToast(`Split persen harus total 100% (sekarang: ${persenOpr + persenKantor}%)`, 'err');
         return;
     }
