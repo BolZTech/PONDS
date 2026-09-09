@@ -139,7 +139,6 @@ select.form-input{cursor:pointer;appearance:none;background-image:url("data:imag
     </div>
     <div id="loginError" style="display:none;color:var(--err,#ef4444);font-size:12px;margin-bottom:14px"></div>
     <button onclick="handleLogin()" class="btn btn-primary" style="width:100%;justify-content:center">Masuk</button>
-    <div style="text-align:center;font-size:11px;color:var(--muted,#666);margin-top:16px">Default: admin / admin123</div>
   </div>
 </div>
 
@@ -624,15 +623,18 @@ async function handleLogin() {
     }
 
     const hash = await sha256(password);
-    const { data, error } = await sb.from('app_users').select('id, username, role, page_access, password_hash').eq('username', username).maybeSingle();
+    const { data, error } = await sb.rpc('login_user', { p_username: username, p_password_hash: hash });
+    const user = Array.isArray(data) ? data[0] : data;
 
-    if (error || !data || data.password_hash !== hash) {
+    if (error) console.error(error);
+
+    if (error || !user) {
         errEl.innerText = 'Username atau password salah.';
         errEl.style.display = 'block';
         return;
     }
 
-    saveSession({ id: data.id, username: data.username, role: data.role, page_access: data.page_access || [] });
+    saveSession({ id: user.id, username: user.username, role: user.role, page_access: user.page_access || [] });
     await enterApp();
 }
 
